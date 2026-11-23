@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a2b45">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ata">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Ata paralela</title>
+<style>
+/* VOICE: ferramenta de banco de piscina — rápida, legível molhada, sem enfeites
+   IDEA: o quadro de toucas da equipa, com as faltas marcadas em cada uma
+   PICTURE: duas colunas de toucas (brancas / azuis, GR vermelhas) que mudam de cor com as faltas
+   COLOUR/TYPE: azul de piscina, amarelo da bola, laranja/vermelho para faltas; Barlow Condensed nos números
+   LAYOUT: marcador no topo, toucas ao centro, desfazer/período em barra fixa em baixo */
+@font-face{font-family:"Barlow Condensed";font-weight:600;font-display:swap;src:url(fonts/barlow-condensed-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:Barlow;font-weight:400 500;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Barlow;font-weight:600;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
+:root{color-scheme:light dark;
+--bg:light-dark(#e6f2f7,#041a2c);--panel:light-dark(#fff,#0a2b45);--ink:light-dark(#062033,#eaf5fb);
+--mute:light-dark(#4a687b,#8fb1c5);--line:light-dark(#c9dde7,#16405f);
+--ball:#ffd02e;--warn:#ff8a1f;--out:#e5252f;--capw:#fbfbfb;--capb:#1f50aa;--gk:#d22631}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Barlow,system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:12px;min-height:44px;touch-action:manipulation}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
+header{position:sticky;top:0;z-index:5;background:var(--panel);padding:calc(10px + env(safe-area-inset-top)) max(3vw,12px) 0;box-shadow:0 2px 0 var(--line)}
+header::after{content:"";display:block;height:5px;margin:10px calc(-1*max(3vw,12px)) 0;background:repeating-linear-gradient(90deg,var(--out) 0 14px,#fff 14px 28px)}
+.top{display:flex;align-items:center;gap:10px}
+.score{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto auto auto minmax(0,1fr);align-items:center;gap:6px;font-family:"Barlow Condensed",sans-serif}
+.score span{font-size:15px;font-weight:600;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.score span:first-child{text-align:right}
+.score b{font-size:clamp(34px,10vw,48px);line-height:1;min-width:1.2ch;text-align:center}
+.score i{font-style:normal;font-size:28px;color:var(--mute)}
+#per{font-family:"Barlow Condensed";font-weight:700;font-size:20px;background:var(--ball);color:#1d1600;border-radius:10px;padding:4px 10px;white-space:nowrap}
+nav{display:flex;gap:6px;margin-top:8px}
+nav button{flex:1;background:transparent;font-weight:600;color:var(--mute);border-radius:10px 10px 0 0;min-height:40px}
+nav button[aria-current=true]{color:var(--ink);background:var(--bg)}
+main{padding:12px max(3vw,12px) 96px;max-width:900px;margin:0 auto}
+.view[hidden]{display:none}
+.demo{display:flex;gap:10px;align-items:center;background:light-dark(#fff4c7,#3a3100);border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:14px}
+.demo[hidden]{display:none}.demo p{margin:0;flex:1}.demo button{background:var(--ball);color:#1d1600;font-weight:600;padding:0 12px}
+.board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.col h2{margin:0 0 8px;font:700 18px "Barlow Condensed";display:flex;justify-content:space-between;gap:6px}
+.col h2 small{font:500 13px Barlow;color:var(--mute);white-space:nowrap}
+.caps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media(min-width:640px){.caps{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.cap{position:relative;aspect-ratio:1/.92;border-radius:48% 48% 34% 34%;display:grid;place-items:center;align-content:center;gap:2px;
+ font-family:"Barlow Condensed";font-weight:700;box-shadow:inset 0 -6px 0 rgba(0,0,0,.14),inset 0 3px 0 rgba(255,255,255,.35)}
+.cap.white{background:radial-gradient(circle at 35% 25%,#fff,var(--capw) 60%,#dfe5ea);color:#0b2540}
+.cap.blue{background:radial-gradient(circle at 35% 25%,#4b7ad0,var(--capb) 60%,#163b80);color:#fff}
+.cap.gk{background:radial-gradient(circle at 35% 25%,#f25a63,var(--gk) 60%,#9e1720);color:#fff}
+.cap .n{font-size:clamp(26px,8vw,34px);line-height:1}
+.dots{display:flex;gap:4px}.dots i{width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;opacity:.55}
+.dots i.on{background:currentColor;opacity:1}
+.cap .g{position:absolute;top:-4px;right:-4px;background:var(--ball);color:#1d1600;font:700 13px Barlow;border-radius:10px;padding:1px 6px}
+.cap[data-f="2"]{box-shadow:0 0 0 4px var(--warn),inset 0 -6px 0 rgba(0,0,0,.14)}
+.cap[data-f="3"]{box-shadow:0 0 0 4px var(--out),inset 0 -6px 0 rgba(0,0,0,.14)}
+.cap[data-f="3"]::after{content:"FORA";position:absolute;bottom:-7px;background:var(--out);color:#fff;font:700 11px Barlow;letter-spacing:.02em;border-radius:6px;padding:0 6px}
+.unk{width:100%;margin-top:8px;background:transparent;border:2px dashed var(--line);color:var(--mute);font-weight:600;font-size:14px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:10px;padding:10px max(3vw,12px) calc(10px + env(safe-area-inset-bottom));background:var(--panel);box-shadow:0 -2px 0 var(--line)}
+.bar button{flex:1;font-weight:600;background:var(--bg)}
+.armed{background:var(--out)!important;color:#fff!important}
+.sheet{position:fixed;inset:0;z-index:10;background:rgba(2,14,24,.55);display:flex;align-items:flex-end}
+.sheet[hidden]{display:none}
+.sheet>div{width:100%;max-width:560px;margin:0 auto;background:var(--panel);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0;font:700 24px "Barlow Condensed"}
+.sheet p{margin:2px 0 12px;color:var(--mute);font-size:14px}.sheet p.bad{color:var(--out);font-weight:600}
+.acts{display:grid;gap:10px}
+.acts button{min-height:64px;font-size:20px;font-weight:600;background:var(--bg)}
+.acts .goal{background:var(--ball);color:#1d1600}
+.acts .cancel{min-height:48px;font-size:16px;background:transparent;color:var(--mute)}
+ol{list-style:none;margin:0;padding:0}
+.log li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.log time{font:600 15px "Barlow Condensed";color:var(--mute);white-space:nowrap}
+.log .what b{font-weight:600}.log .what small{display:block;color:var(--mute);font-size:13px}
+.log li.per{color:var(--mute);font-weight:600}
+.log button{background:var(--bg);font-size:14px;padding:0 10px}
+.empty{color:var(--mute);text-align:center;padding:32px 0}
+.set{display:grid;gap:14px;max-width:520px}
+.set label{display:grid;gap:4px;font-weight:600;font-size:14px}
+.set input,.set select{min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:var(--panel)}
+.row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
+.set button{background:var(--panel);border:1px solid var(--line);font-weight:600}
+.set .primary{background:var(--ball);color:#1d1600;border:0}
+textarea{width:100%;min-height:200px;font:13px/1.4 ui-monospace,monospace;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--panel);color:var(--ink)}
+.note{font-size:13px;color:var(--mute);margin:0}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:20;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;max-width:92vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .15s}
+.toast.on{opacity:1}.toast.bad{background:var(--out);color:#fff}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="score" aria-live="polite"><span id="n0"></span><b id="s0">0</b><i>:</i><b id="s1">0</b><span id="n1"></span></div>
+    <div id="per">P1</div>
+  </div>
+  <nav>
+    <button data-v="jogo" aria-current="true">Jogo</button>
+    <button data-v="log">Registo</button>
+    <button data-v="set">Definições</button>
+  </nav>
+</header>
+
+<main>
+  <section class="view" id="v-jogo">
+    <div class="demo" id="demo" hidden><p>Jogo de exemplo, para veres as cores das faltas.</p><button id="clearDemo">Começar jogo</button></div>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="view" id="v-log" hidden>
+    <ol class="log" id="log"></ol>
+  </section>
+
+  <section class="view" id="v-set" hidden>
+    <div class="set">
+      <div class="row"><label>Equipa 1<input id="tn0" autocomplete="off"></label><label>Touca<select id="tc0"><option value="white">Branca</option><option value="blue">Azul</option></select></label></div>
+      <div class="row"><label>Equipa 2<input id="tn1" autocomplete="off"></label><label>Touca<select id="tc1"><option value="white">Branca</option><option value="blue">Azul</option></select></label></div>
+      <label>Toucas por equipa<select id="ncaps"><option>13</option><option>14</option><option>15</option></select></label>
+      <p class="note">Toucas 1 e 13 aparecem a vermelho (guarda-redes).</p>
+      <button class="primary" id="copy">Copiar resumo e registo</button>
+      <details><summary>Ver texto para copiar à mão</summary><textarea id="txt" readonly></textarea></details>
+      <button id="newGame">Novo jogo (apaga o registo)</button>
+      <p class="note">Os dados ficam só neste telemóvel, neste navegador. Copia o resumo no fim de cada jogo.</p>
+      <button class="primary" id="upd" hidden>Há uma versão nova — atualizar (só fora de jogo)</button>
+      <p class="note" id="offl">A verificar o modo offline…</p>
+      <p class="note">Versão 1.1</p>
+    </div>
+  </section>
+</main>
+
+<div class="bar" id="bar">
+  <button id="undo">Desfazer último</button>
+  <button id="nextPer">Fim do período</button>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div role="dialog" aria-modal="true" aria-labelledby="shT">
+    <h3 id="shT"></h3>
+    <p id="shP"></p>
+    <div class="acts">
+      <button class="goal" data-a="goal">Golo</button>
+      <button data-a="excl">Exclusão</button>
+      <button data-a="pen">Penálti cometido</button>
+      <button class="cancel" data-a="x">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+{
+const K='ata-polo-v1';
+const $=s=>document.querySelector(s);
+const TYPES={goal:'Golo',excl:'Exclusão',pen:'Penálti cometido'};
+const fresh=old=>({teams:old?old.teams:[{name:'Casa',cap:'white'},{name:'Visitante',cap:'blue'}],caps:old?old.caps:14,events:[],demo:false});
+const load=()=>{try{return JSON.parse(localStorage.getItem(K))}catch(e){return null}};
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+let S=load();
+if(!S||!S.teams){S=fresh();S.demo=true;
+  const base=Date.now()-1000*60*22;let k=0;
+  const ev=(team,cap,type)=>S.events.push({id:++k,t:base+k*95000,team,cap,type});
+  ev(0,7,'goal');ev(1,4,'excl');ev(0,3,'excl');ev(1,9,'excl');ev(1,10,'goal');ev(0,3,'pen');ev(1,9,'excl');
+  S.events.push({id:++k,t:base+k*95000,type:'period'});
+  ev(0,5,'goal');ev(1,9,'pen');ev(0,null,'goal');
+}
+let sel=null;
+
+const perOf=i=>1+S.events.slice(0,i).filter(e=>e.type==='period').length;
+const period=()=>perOf(S.events.length);
+const perLabel=p=>p<=4?'P'+p:'Pen.';
+const isFoul=e=>e.type==='excl'||e.type==='pen';
+const fouls=(t,c)=>S.events.filter(e=>e.team===t&&e.cap===c&&isFoul(e)).length;
+const goals=(t,c)=>S.events.filter(e=>e.team===t&&e.cap===c&&e.type==='goal').length;
+const score=t=>S.events.filter(e=>e.team===t&&e.type==='goal').length;
+const tn=t=>S.teams[t].name||('Equipa '+(t+1));
+const hhmm=ms=>new Date(ms).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const capName=(t,c)=>c==null?tn(t)+' (touca ?)':tn(t)+' #'+c;
+
+let tT;
+function toast(msg,bad){const el=$('#toast');el.textContent=msg;el.className='toast on'+(bad?' bad':'');clearTimeout(tT);tT=setTimeout(()=>el.className='toast',2600)}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+
+function arm(btn,txt,fn){
+  if(btn._armed){clearTimeout(btn._armed);btn._armed=0;btn.textContent=btn.dataset.l;btn.classList.remove('armed');fn();return}
+  btn.dataset.l=btn.textContent;btn.textContent=txt;btn.classList.add('armed');
+  btn._armed=setTimeout(()=>{btn._armed=0;btn.textContent=btn.dataset.l;btn.classList.remove('armed')},3000);
+}
+
+// Linha de texto de cada evento, com resultado corrente
+function annotate(){
+  const sc=[0,0],fc={};let p=1;
+  return S.events.map(e=>{
+    if(e.type==='period'){p++;return{e,txt:'Fim de '+perLabel(p-1),sub:'Resultado '+sc[0]+'–'+sc[1],p:p-1}}
+    let sub='';
+    if(e.type==='goal'){sc[e.team]++;sub=sc[0]+'–'+sc[1]}
+    else{const key=e.team+'-'+e.cap;fc[key]=(fc[key]||0)+1;sub=fc[key]+'.ª falta pessoal'+(fc[key]>=3?' — FORA':'')}
+    return{e,txt:capName(e.team,e.cap)+' · '+TYPES[e.type],sub,p};
+  });
+}
+
+function render(){
+  for(const t of [0,1]){$('#n'+t).textContent=tn(t);$('#s'+t).textContent=score(t)}
+  $('#per').textContent=perLabel(period());
+  $('#demo').hidden=!S.demo;
+  $('#board').innerHTML=[0,1].map(t=>{
+    const caps=Array.from({length:S.caps},(_,i)=>i+1).map(c=>{
+      const f=fouls(t,c),g=goals(t,c),cls=(c===1||c===13)?'gk':S.teams[t].cap;
+      return `<button class="cap ${cls}" data-t="${t}" data-c="${c}" data-f="${Math.min(f,3)}" aria-label="${esc(tn(t))} touca ${c}, ${f} faltas, ${g} golos">
+        <span class="n">${c}</span><span class="dots">${[0,1,2].map(i=>`<i class="${i<f?'on':''}"></i>`).join('')}</span>${g?`<span class="g">${g}</span>`:''}</button>`}).join('');
+    const unk=S.events.filter(e=>e.team===t&&e.cap==null&&e.type==='goal').length;
+    return `<div class="col"><h2>${esc(tn(t))}<small>${S.events.filter(e=>e.team===t&&isFoul(e)).length} faltas</small></h2>
+      <div class="caps">${caps}</div><button class="unk" data-t="${t}">+ Golo sem touca${unk?' ('+unk+')':''}</button></div>`}).join('');
+  const rows=annotate();
+  $('#log').innerHTML=rows.length?rows.slice().reverse().map(r=>`<li class="${r.e.type==='period'?'per':''}">
+      <time>${perLabel(r.p)} · ${hhmm(r.e.t)}</time><span class="what"><b>${esc(r.txt)}</b><small>${esc(r.sub)}</small></span>
+      <button data-del="${r.e.id}">Apagar</button></li>`).join('')
+    :'<li class="empty">Sem eventos. Toca numa touca no ecrã Jogo.</li>';
+  for(const t of [0,1]){$('#tn'+t).value=S.teams[t].name;$('#tc'+t).value=S.teams[t].cap}
+  $('#ncaps').value=String(S.caps);
+  $('#txt').value=summary();
+}
+
+function summary(){
+  const L=[],d=new Date(S.events[0]?S.events[0].t:Date.now());
+  L.push(`Ata paralela — ${tn(0)} x ${tn(1)} — ${d.toLocaleDateString('pt-PT')}`);
+  L.push(`Resultado: ${tn(0)} ${score(0)}–${score(1)} ${tn(1)}`);
+  const per={};annotate().forEach(r=>{if(r.e.type==='goal'){per[r.p]=per[r.p]||[0,0];per[r.p][r.e.team]++}});
+  const pk=Object.keys(per);if(pk.length)L.push('Por período: '+pk.map(p=>perLabel(+p)+' '+per[p][0]+'–'+per[p][1]).join(', '));
+  L.push('','Faltas pessoais:');
+  for(const t of [0,1]){
+    const list=Array.from({length:S.caps},(_,i)=>i+1).map(c=>[c,fouls(t,c)]).filter(x=>x[1]).map(([c,f])=>'#'+c+' '+f+(f>=3?' (FORA)':''));
+    L.push(tn(t)+': '+(list.join(', ')||'nenhuma'));
+  }
+  L.push('','Registo:');
+  annotate().forEach(r=>L.push(`${perLabel(r.p)} ${hhmm(r.e.t)}  ${r.txt}  (${r.sub})`));
+  return L.join('\n');
+}
+
+function add(team,cap,type){
+  if(S.demo){toast('Isto é o exemplo. Toca em "Começar jogo" primeiro.',true);return}
+  S.events.push({id:Date.now(),t:Date.now(),team,cap,type});save();render();
+  if(type==='goal'){toast('Golo '+capName(team,cap)+' — '+score(0)+'–'+score(1));buzz(40);return}
+  const f=fouls(team,cap);
+  if(f===2){toast(capName(team,cap)+': 2.ª falta pessoal');buzz(120)}
+  else if(f===3){toast(capName(team,cap)+': 3.ª falta — FORA',true);buzz([120,80,120])}
+  else if(f>3){toast(capName(team,cap)+' já tinha 3 faltas — confirma com a mesa',true);buzz([120,80,120])}
+  else toast(capName(team,cap)+': 1.ª falta pessoal');
+}
+
+function openSheet(t,c){
+  sel={t,c};const f=fouls(t,c);
+  $('#shT').textContent=capName(t,c);
+  const p=$('#shP');p.textContent=f>=3?'Já tem '+f+' faltas pessoais (devia estar fora).':f+' falta'+(f===1?'':'s')+' pessoal'+(f===1?'':'is')+' · '+goals(t,c)+' golo'+(goals(t,c)===1?'':'s');
+  p.className=f>=3?'bad':'';
+  $('#sheet').hidden=false;$('#sheet .goal').focus();
+}
+const closeSheet=()=>{$('#sheet').hidden=true;sel=null};
+
+let wl=null;
+document.addEventListener('pointerdown',()=>{if(wl)return;try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(l=>{wl=l;l.addEventListener('release',()=>wl=null)}).catch(()=>{})}catch(e){}},{passive:true});
+
+$('#board').addEventListener('click',e=>{
+  const cap=e.target.closest('.cap');if(cap){openSheet(+cap.dataset.t,+cap.dataset.c);return}
+  const u=e.target.closest('.unk');if(u)add(+u.dataset.t,null,'goal');
+});
+$('#sheet').addEventListener('click',e=>{
+  if(e.target.id==='sheet'){closeSheet();return}
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a,s=sel;closeSheet();if(a!=='x'&&s)add(s.t,s.c,a);
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
+
+$('#undo').addEventListener('click',()=>{
+  if(S.demo||!S.events.length){toast('Nada para desfazer');return}
+  const r=annotate().pop();S.events.pop();save();render();toast('Desfeito: '+r.txt);
+});
+$('#nextPer').addEventListener('click',e=>{
+  if(S.demo){toast('Isto é o exemplo. Toca em "Começar jogo" primeiro.',true);return}
+  arm(e.currentTarget,'Confirmar fim de '+perLabel(period())+'?',()=>{S.events.push({id:Date.now(),t:Date.now(),type:'period'});save();render();toast('Início de '+perLabel(period()))});
+});
+$('#log').addEventListener('click',e=>{
+  const b=e.target.closest('[data-del]');if(!b)return;
+  arm(b,'Confirmar',()=>{if(S.demo)return;S.events=S.events.filter(x=>String(x.id)!==b.dataset.del);save();render();toast('Evento apagado')});
+});
+document.querySelector('nav').addEventListener('click',e=>{
+  const b=e.target.closest('[data-v]');if(!b)return;
+  document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-current',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.hidden=v.id!=='v-'+b.dataset.v);
+  $('#bar').hidden=b.dataset.v!=='jogo';$('#bar').style.display=b.dataset.v==='jogo'?'':'none';
+});
+for(const t of [0,1]){
+  $('#tn'+t).addEventListener('input',e=>{S.teams[t].name=e.target.value.slice(0,24);save();render()});
+  $('#tc'+t).addEventListener('change',e=>{S.teams[t].cap=e.target.value;save();render()});
+}
+$('#ncaps').addEventListener('change',e=>{S.caps=+e.target.value;save();render()});
+$('#clearDemo').addEventListener('click',()=>{S=fresh(S);save();render();toast('Novo jogo. Bom jogo!')});
+$('#newGame').addEventListener('click',e=>arm(e.currentTarget,'Tocar outra vez para apagar',()=>{S=fresh(S);save();render();toast('Registo apagado')}));
+$('#copy').addEventListener('click',()=>{
+  const txt=summary();
+  try{navigator.clipboard.writeText(txt).then(()=>toast('Copiado')).catch(()=>{$('#txt').closest('details').open=true;toast('Copia o texto em baixo',true)})}
+  catch(e){$('#txt').closest('details').open=true;toast('Copia o texto em baixo',true)}
+});
+render();
+
+// Modo offline: service worker + armazenamento persistente
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+const offl=$('#offl');
+if('serviceWorker' in navigator){
+  let wantReload=false;
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    const ready=()=>{offl.textContent=navigator.serviceWorker.controller?'Pronto para usar sem rede.':'Modo offline instalado. Fecha e volta a abrir a app.'};
+    const showUpd=()=>{if(reg.waiting&&navigator.serviceWorker.controller){$('#upd').hidden=false;toast('Há uma versão nova — atualiza em Definições, depois do jogo')}};
+    navigator.serviceWorker.ready.then(ready);showUpd();
+    reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed')showUpd()})});
+    $('#upd').addEventListener('click',()=>{if(reg.waiting){wantReload=true;reg.waiting.postMessage('SKIP_WAITING')}});
+  }).catch(()=>{offl.textContent='Modo offline indisponível (é preciso abrir por https).'});
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(wantReload)location.reload()});
+}else offl.textContent='Este navegador não suporta modo offline.';
+}
+</script>
+</body>
+</html>
